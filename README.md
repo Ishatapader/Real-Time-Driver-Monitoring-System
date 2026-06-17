@@ -1,32 +1,38 @@
 # Real-Time Driver Monitoring System (DMS)
 
-A system that watches a driver through a webcam, notices when they look sleepy, are yawning, or are nodding off, and warns them with an alarm. Every warning is saved to a file so it can be reviewed later on a simple dashboard.
+A webcam-based system that watches a driver's eyes, mouth, and head position in real time, detects signs of drowsiness, plays an alert, and logs every event for later review.
 
 ## Problem Statement
 
-Many road accidents happen because a driver falls asleep or loses focus for just a few seconds without realizing it. There is usually no way for a driver to know in the moment that they look sleepy, and no record afterward to look back on and understand what happened during the drive.
+Driver fatigue is one of the leading causes of road accidents, and it's hard to catch in the moment, drivers often don't realize their eyes have closed for a second too long or their head has started to drop until it's already a problem. Most vehicles have no built-in way to detect this in real time, and after a drive there's usually no data to look back on to understand when or how often it happened. This project aims to close that gap with a low-cost, webcam-only monitoring solution.
 
-## Solution Strategy
+## Approach
 
-This project uses a webcam and face-tracking to watch the driver's eyes, mouth, and head position in real time:
+The system uses MediaPipe's face mesh model to extract facial landmarks from each webcam frame and turns them into three measurable signals: eye closure (Eye Aspect Ratio), yawning (Mouth Aspect Ratio), and head pitch, estimated by solving a Perspective-n-Point problem with OpenCV's `solvePnP` against a 3D face model, then compared against a baseline captured during a short calibration step. To avoid false alerts from a normal blink or a quick glance away, each signal has to stay past its threshold for several consecutive frames before it counts as a real warning. Once triggered, the system plays an audio alert on a separate thread so the video feed never freezes, and logs the event with a timestamp to a CSV file. A Streamlit dashboard then reads that file to summarize and chart what happened across a session.
 
-- **Eyes** — checks if the eyes stay closed for too long
-- **Mouth** — checks if the driver is yawning
-- **Head position** — checks if the head is dropping forward, like nodding off
+## Key Features
 
-If any of these happens for a few seconds in a row, the system plays an alarm sound so the driver wakes up and pays attention. Every time this happens, it's written down with the time and details, so later you can open a dashboard and see how many times it happened and when.
+- Real-time face and posture tracking from a webcam
+- Auto-calibration to the driver's normal sitting position
+- False-alarm filtering using consecutive-frame checks
+- Non-blocking audio alerts (runs on a separate thread)
+- CSV logging and a Streamlit dashboard for reviewing past sessions
+
+## Tech Stack
+
+Python, OpenCV, MediaPipe, NumPy, Streamlit, Pandas, Plotly
 
 ## Project Structure
 
 ```
 .
-├── main.py                  # Watches the webcam, detects warning signs, plays the alarm, saves logs
-├── dashboard.py              # Shows the saved logs as charts and numbers
-├── config.json                # Settings used by main.py
-└── driver_telemetry.csv  # The saved log of all warnings
+├── main.py                  # Webcam capture, landmark detection, alert logic, CSV logging
+├── dashboard.py              # Streamlit dashboard for reviewing logged sessions
+├── config.json                # Externalized thresholds and runtime settings
+└── driver_telemetry.csv  # Auto-generated log of detected events
 ```
 
-## Requirements
+## Installation
 
 ```bash
 pip install opencv-python mediapipe numpy streamlit pandas plotly
@@ -34,14 +40,18 @@ pip install opencv-python mediapipe numpy streamlit pandas plotly
 
 ## Usage
 
-**Start monitoring:**
+**Run the monitoring system:**
+
 ```bash
 python main.py
 ```
-Sit normally while it calibrates at the start. Press `m` to mute or unmute the alarm. Press `q` to quit.
 
-**View the dashboard:**
+Sit normally during the brief calibration phase at startup. Press `m` to mute/unmute the alert, `q` to quit.
+
+**Review session data:**
+
 ```bash
 streamlit run dashboard.py
 ```
-This opens a browser window showing how many warnings happened and a chart of each one over time.
+
+Opens a browser dashboard showing total warnings and time-series charts for each metric.
